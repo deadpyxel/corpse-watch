@@ -1,8 +1,12 @@
 package scanner
 
-import "net/url"
+import (
+	"net/url"
+)
 
-func isSameDomain(baseURL, checkURL string) (bool, error) {
+// IsSameDomain checks if two URLs belong to the same domain.
+// Returns an error if an invalid URL is passed
+func IsSameDomain(baseURL, checkURL string) (bool, error) {
 	base, err := url.Parse(baseURL)
 	if err != nil {
 		return false, err
