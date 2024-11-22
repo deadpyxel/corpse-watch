@@ -15,22 +15,29 @@ func TestIsSameDomain(t *testing.T) {
 		expectErr bool
 	}{
 		{
-			name:      "same domain urls returns true with no errors",
+			name:      "when same domain urls returns true with no errors",
 			baseURL:   "https://example.com",
 			checkURL:  "https://example.com/page",
 			expected:  true,
 			expectErr: false,
 		},
 		{
-			name:      "different domain urls returns false with no errors",
+			name:      "when different domain urls returns false with no errors",
 			baseURL:   "https://example.com",
 			checkURL:  "https://other.com/page",
 			expected:  false,
 			expectErr: false,
 		},
 		{
-			name:      "invalid domain urls returns false with errors",
+			name:      "when one invalid domain urls returns false with errors",
 			baseURL:   "https://example.com",
+			checkURL:  ":invalid-url",
+			expected:  false,
+			expectErr: true,
+		},
+		{
+			name:      "when both invalid domain urls returns false with errors",
+			baseURL:   ":another-invalid-url",
 			checkURL:  ":invalid-url",
 			expected:  false,
 			expectErr: true,
