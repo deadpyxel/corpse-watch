@@ -63,7 +63,12 @@ func parseLinks(resp *http.Response, opts *LinkParserOptions) []string {
 		return foundURLs
 	}
 
-	limitedBody := io.LimitReader(resp.Body, opts.ReaderLimit)
+	// TODO: find a way to default reader size to 1MiB without this conditional
+	readerLimit := int64(1024 * 1024)
+	if opts.ReaderLimit > 0 {
+		readerLimit = opts.ReaderLimit
+	}
+	limitedBody := io.LimitReader(resp.Body, readerLimit)
 	tokenizer := html.NewTokenizer(limitedBody)
 
 	for {
