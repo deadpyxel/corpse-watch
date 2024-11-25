@@ -82,12 +82,22 @@ func parseLinks(resp *http.Response, opts *LinkParserOptions) []string {
 			for _, attr := range token.Attr {
 				if attr.Key == "href" {
 					link := attr.Val
-					if isBrowsableURL(link, opts.InvalidPrefixes) {
-						absoluteURL := makeAbsoluteURL(resp.Request.URL, link)
-						if absoluteURL != "" {
-							foundURLs = append(foundURLs, absoluteURL)
-						}
+					if !isBrowsableURL(link, opts.InvalidPrefixes) {
+						continue
 					}
+					absoluteURL := makeAbsoluteURL(resp.Request.URL, link)
+					if absoluteURL == "" {
+						continue
+					}
+					sameDomain, err := IsSameDomain(resp.Request.URL.String(), absoluteURL)
+					if err != nil {
+						// TODO: handle this error case
+						continue
+					}
+					if opts.SkipExternalLinks && !sameDomain {
+						continue
+					}
+					foundURLs = append(foundURLs, absoluteURL)
 				}
 			}
 		}

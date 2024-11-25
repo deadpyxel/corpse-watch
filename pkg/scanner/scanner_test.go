@@ -149,28 +149,41 @@ func createMockHttpResponse(htmlContent string, baseURL string) *http.Response {
 }
 
 func TestParseLinks(t *testing.T) {
+	defaultOpts := DefaultLinkParserOptions()
 	tests := []struct {
 		name     string
 		html     string
 		baseURL  string
+		opts     *LinkParserOptions
 		expected []string
 	}{
 		{
 			name:     "When no links in response return empty slice",
 			html:     "<html><body><p>Dummy</p></body></html>",
 			baseURL:  "http://example.com",
+			opts:     defaultOpts,
 			expected: []string{},
 		},
 		{
 			name:     "When single relative link is in response returns absolute URL",
 			html:     `<html><body><a href="/about">About</a></body></html>`,
 			baseURL:  "http://example.com",
+			opts:     defaultOpts,
+			expected: []string{"http://example.com/about"},
+		},
+		// TODO: Find a better way to test this case
+		{
+			name:     "When no opts are passed uses safe defaults",
+			html:     `<html><body><a href="/about">About</a></body></html>`,
+			baseURL:  "http://example.com",
+			opts:     nil,
 			expected: []string{"http://example.com/about"},
 		},
 		{
 			name:     "When multiple links are in response returns all present URLs",
 			html:     `<html><body><a href="/about">About</a><a href="/contact">Contact</a></body></html>`,
 			baseURL:  "http://example.com",
+			opts:     defaultOpts,
 			expected: []string{"http://example.com/about", "http://example.com/contact"},
 		},
 		{
@@ -183,18 +196,21 @@ func TestParseLinks(t *testing.T) {
 				<a href="/valid">Valid Link</a>
 			</body></html>`,
 			baseURL:  "http://example.com",
+			opts:     defaultOpts,
 			expected: []string{"http://example.com/valid"},
 		},
 		{
-			name:     "When external links are present they are returned",
+			name:     "When external links are present and allowed they are returned",
 			html:     `<html><body><a href="http://another.com/page">External Link</a></body></html>`,
 			baseURL:  "http://example.com",
+			opts:     &LinkParserOptions{SkipExternalLinks: false},
 			expected: []string{"http://another.com/page"},
 		},
 		{
 			name:     "When missing href returns an empty slice",
 			html:     `<html><body><a target="_blank">External Link</a></body></html>`,
 			baseURL:  "http://example.com",
+			opts:     defaultOpts,
 			expected: []string{},
 		},
 	}
@@ -202,7 +218,7 @@ func TestParseLinks(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			resp := createMockHttpResponse(tc.html, tc.baseURL)
-			result := parseLinks(resp, nil)
+			result := parseLinks(resp, tc.opts)
 
 			if len(result) != len(tc.expected) {
 				t.Errorf("Expected %d links, got %d instead", len(tc.expected), len(result))
