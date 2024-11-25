@@ -42,9 +42,19 @@ func makeAbsoluteURL(baseURL *url.URL, href string) string {
 	return absURL.String()
 }
 
+// parseLinks parses the HTML content of an HTTP response and extracts all valid URLs found in anchor tags.
+// It takes a pointer to an http.Response object as input and returns a slice of strings containing the valid URLs.
+// The function uses the html package to tokenize the response body and extract anchor tags.
+// It filters out URLs with invalid prefixes such as "#" or "javascript:".
+// The function also converts relative URLs to absolute URLs using the base URL from the response.
+// If no valid URLs are found, an empty slice is returned.
+//
+// Note: This function assumes that the response body contains valid HTML content with anchor tags.
+// It does not handle malformed HTML or non-HTML content gracefully.
 func parseLinks(resp *http.Response) []string {
 	foundURLs := make([]string, 0)
 	tokenizer := html.NewTokenizer(resp.Body)
+	invalidPrefixes := []string{"#", "javascript:", "mailto:", "tel:"}
 
 	for {
 		tokenType := tokenizer.Next()
@@ -55,12 +65,13 @@ func parseLinks(resp *http.Response) []string {
 		token := tokenizer.Token()
 		if tokenType == html.StartTagToken && token.Data == "a" {
 			for _, attr := range token.Attr {
-				link := attr.Val
-				invalidPrefixes := []string{"#", "javascript:", "mailto:", "tel:"}
-				if isBrowsableURL(link, invalidPrefixes) {
-					absoluteURL := makeAbsoluteURL(resp.Request.URL, link)
-					if absoluteURL != "" {
-						foundURLs = append(foundURLs, absoluteURL)
+				if attr.Key == "href" {
+					link := attr.Val
+					if isBrowsableURL(link, invalidPrefixes) {
+						absoluteURL := makeAbsoluteURL(resp.Request.URL, link)
+						if absoluteURL != "" {
+							foundURLs = append(foundURLs, absoluteURL)
+						}
 					}
 				}
 			}

@@ -1,9 +1,13 @@
 package scanner
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"net/url"
+	"slices"
 	"testing"
 )
 
@@ -130,6 +134,86 @@ func TestMakeAbsoluteURL(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("makeAbsoluteURL(%s, %s) results in %s; want %s,", tt.baseURL, tt.href, got, tt.want)
 			}
+		})
+	}
+}
+
+// createMockHttpResponse creates a mock http.Response object with the given HTML content and base URL.
+func createMockHttpResponse(htmlContent string, baseURL string) *http.Response {
+	parsedURL, _ := url.Parse(baseURL)
+	resp := &http.Response{
+		Body:    io.NopCloser(bytes.NewBufferString(htmlContent)),
+		Request: &http.Request{URL: parsedURL},
+	}
+	return resp
+}
+
+func TestParseLinks(t *testing.T) {
+	tests := []struct {
+		name     string
+		html     string
+		baseURL  string
+		expected []string
+	}{
+		{
+			name:     "When no links in response return empty slice",
+			html:     "<html><body><p>Dummy</p></body></html>",
+			baseURL:  "http://example.com",
+			expected: []string{},
+		},
+		{
+			name:     "When single relative link is in response returns absolute URL",
+			html:     `<html><body><a href="/about">About</a></body></html>`,
+			baseURL:  "http://example.com",
+			expected: []string{"http://example.com/about"},
+		},
+		{
+			name:     "When multiple links are in response returns all present URLs",
+			html:     `<html><body><a href="/about">About</a><a href="/contact">Contact</a></body></html>`,
+			baseURL:  "http://example.com",
+			expected: []string{"http://example.com/about", "http://example.com/contact"},
+		},
+		{
+			name: "When links with invalid prefixes are present only returns the valid links",
+			html: `<html><body>
+				<a href="#">Skip</a>
+				<a href="javascript:void(0)">JS Link</a>
+				<a href="mailto:test@example.com">Email</a>
+				<a href="tel:1234567890">Phone</a>
+				<a href="/valid">Valid Link</a>
+			</body></html>`,
+			baseURL:  "http://example.com",
+			expected: []string{"http://example.com/valid"},
+		},
+		{
+			name:     "When external links are present they are returned",
+			html:     `<html><body><a href="http://another.com/page">External Link</a></body></html>`,
+			baseURL:  "http://example.com",
+			expected: []string{"http://another.com/page"},
+		},
+		{
+			name:     "When missing href returns an empty slice",
+			html:     `<html><body><a target="_blank">External Link</a></body></html>`,
+			baseURL:  "http://example.com",
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := createMockHttpResponse(tc.html, tc.baseURL)
+			result := parseLinks(resp)
+
+			if len(result) != len(tc.expected) {
+				t.Errorf("Expected %d links, got %d instead", len(tc.expected), len(result))
+			}
+
+			for _, expectedURL := range tc.expected {
+				if !slices.Contains(result, expectedURL) {
+					t.Errorf("Missing expected URL: %s", expectedURL)
+				}
+			}
+
 		})
 	}
 }
