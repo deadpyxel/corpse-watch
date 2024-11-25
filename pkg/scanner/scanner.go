@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -51,10 +52,19 @@ func makeAbsoluteURL(baseURL *url.URL, href string) string {
 //
 // Note: This function assumes that the response body contains valid HTML content with anchor tags.
 // It does not handle malformed HTML or non-HTML content gracefully.
-func parseLinks(resp *http.Response) []string {
+func parseLinks(resp *http.Response, opts *LinkParserOptions) []string {
+	if opts == nil {
+		opts = DefaultLinkParserOptions()
+	}
 	foundURLs := make([]string, 0)
-	tokenizer := html.NewTokenizer(resp.Body)
-	invalidPrefixes := []string{"#", "javascript:", "mailto:", "tel:"}
+
+	// gracefully exit if nil response or closed body
+	if resp == nil || resp.Body == nil {
+		return foundURLs
+	}
+
+	limitedBody := io.LimitReader(resp.Body, opts.ReaderLimit)
+	tokenizer := html.NewTokenizer(limitedBody)
 
 	for {
 		tokenType := tokenizer.Next()
@@ -67,7 +77,7 @@ func parseLinks(resp *http.Response) []string {
 			for _, attr := range token.Attr {
 				if attr.Key == "href" {
 					link := attr.Val
-					if isBrowsableURL(link, invalidPrefixes) {
+					if isBrowsableURL(link, opts.InvalidPrefixes) {
 						absoluteURL := makeAbsoluteURL(resp.Request.URL, link)
 						if absoluteURL != "" {
 							foundURLs = append(foundURLs, absoluteURL)

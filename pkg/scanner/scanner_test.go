@@ -202,7 +202,7 @@ func TestParseLinks(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			resp := createMockHttpResponse(tc.html, tc.baseURL)
-			result := parseLinks(resp)
+			result := parseLinks(resp, nil)
 
 			if len(result) != len(tc.expected) {
 				t.Errorf("Expected %d links, got %d instead", len(tc.expected), len(result))
@@ -216,4 +216,14 @@ func TestParseLinks(t *testing.T) {
 
 		})
 	}
+}
+
+func TestParseLinksErrors(t *testing.T) {
+	t.Run("When an empty response returns empty slice", func(t *testing.T) {
+		result := parseLinks(nil, nil)
+
+		if len(result) != 0 {
+			t.Errorf("expected empty slice, got %d elements instead", len(result))
+		}
+	})
 }
